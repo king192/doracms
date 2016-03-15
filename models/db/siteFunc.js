@@ -166,7 +166,8 @@ var siteFunc = {
             pageType: 'index',
             logined: isLogined(req),
             staticforder : staticforder,
-            layout: defaultTempPath
+            layout: defaultTempPath,
+            flag:1
         }
     },
 
@@ -178,7 +179,8 @@ var siteFunc = {
             cateTypes: siteFunc.getCategoryList(),
             logined : req.session.logined,
             staticforder : staticforder,
-            layout : defaultTempPath
+            layout : defaultTempPath,
+            flag:2
         }
 
     },
@@ -188,6 +190,7 @@ var siteFunc = {
         var documentList = DbOpt.getPaginationResult(Content, req, res, params.contentQuery, requireField);
         var currentCateList = ContentCategory.find(params.cateQuery).sort({'sortId': 1});
         var tagsData = DbOpt.getDatasByParam(ContentTags, req, res, {});
+        console.log('doc',documentList.docs);
         return {
             siteConfig: this.siteInfos(params.result.name, params.result.comments, params.result.keywords),
             documentList: documentList.docs,
@@ -201,13 +204,16 @@ var siteFunc = {
             pageType: 'cate',
             logined: isLogined(req),
             staticforder : staticforder,
-            layout: defaultTempPath
+            layout: defaultTempPath,
+            flag:3
         }
     },
-
-    setDetailInfo: function (req, res, params ,staticforder, defaultTempPath) {
+    getArtcleTitleByCateId : function(cate_id){
+        return Content.find({'category':cate_id},'title');
+    },
+    setDetailInfo: function (req, res, params ,staticforder, defaultTempPath,other) {
         var currentCateList = ContentCategory.find(params.cateQuery).sort({'sortId': 1});
-        //var tagsData = DbOpt.getDatasByParam(ContentTags, req, res, {});
+        other = other || null;
         return {
             siteConfig: this.siteInfos(params.detail.title, params.detail.discription, params.detail.keywords),
             cateTypes: this.getCategoryList(),
@@ -221,7 +227,8 @@ var siteFunc = {
             pageType: 'detail',
             logined: isLogined(req),
             staticforder : staticforder,
-            layout: defaultTempPath
+            layout: defaultTempPath,
+            cateArtileListData:other
         }
     },
 
@@ -238,7 +245,8 @@ var siteFunc = {
             pageType: 'search',
             logined: isLogined(req),
             staticforder : staticforder,
-            layout: defaultTempPath
+            layout: defaultTempPath,
+            flag:4
         }
     },
 
@@ -381,6 +389,19 @@ var siteFunc = {
             }
         });
     },
+    getArtcleTitleByCateId11 : function(cate_id,call){
+        cache.get('aArtcleTitleByCateId_'+cate_id,function(res){
+            if(res){
+                call(res);
+            }else{
+                Content.find({'category':cate_id},'title',function(err,result){
+                    cache.set('aArtcleTitleByCateId_'+cate_id,result, 1000 * 60 * 60 * 24);
+                    call(result);
+                });
+            }
+        })
+    },
+
     //根据id获取模板单元的forder
     getTempItemById : function(defatulTemp,id){
         var targetForder = '';
@@ -461,7 +482,10 @@ var siteFunc = {
                     }else{
                         targetPath = settings.SYSTEMTEMPFORDER + temp.alias + '/' + siteFunc.getDefaultTempItem(temp) + '/detail';
                     }
-                    res.render(targetPath , siteFunc.setDetailInfo(req, res, params , temp.alias, defaultTempPath));
+                    // console.log('!!!!!!!!!!!!!!',params.detail.category._id);
+                    siteFunc.getArtcleTitleByCateId11(params.detail.category._id,function(other){
+                        res.render(targetPath , siteFunc.setDetailInfo(req, res, params , temp.alias, defaultTempPath,other));
+                    });
                 }else if(type == 'user'){
                     targetPath = settings.SYSTEMTEMPFORDER + temp.alias + '/users/' + params.page;
                     res.render(targetPath, siteFunc.setDataForUser(req, res, params , temp.alias, defaultTempPath));
